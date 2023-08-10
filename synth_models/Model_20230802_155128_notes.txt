@@ -1,0 +1,187 @@
+
+#checklist for running as of 2.19.16:
+1. Set synth_data to true if running synth data
+2. If running real data:
+    a. Check the graph_idx. Is it what you want? (exictatory cells, etc)
+    b. check the edge index. Is it what you want? (trim_50kb_w_self_edge_index, etc)
+    c. check num_excitatory cells. Is it what you want? (len(graph_idx_list))
+3. if running synth data
+    a. check synth_data_stamp_name is for the dataset you want.
+4. set hpc_run to true if running on hpc
+5. set num_epochs
+6. set batch_size
+
+
+#version notes
+#v0.2.1 you're going to load only the first 10 of the excitatory cells in the dataset class. 
+#v0.3.1 added sag pool, extracted summed the sagpool scores to scoresum, added model save function with timestamp
+#v0.4.1 added custom sag pool. See week 12 work notes for how to use. key feature: it returns an extra tensor with the complete sagpool scores.
+#problem: pre_drop_score_sum collects scores from all epochs during trainging. We really only want the scores from the last epoch.
+#v0.4.2 added total run time measurer
+#0.5.2 testing last-epoch only score collector
+#0.5.3 changed epoch runtime 
+#0.6.3 added the scoresum collector
+#0.6.4 fixed scoresum failing when run batch size != set batch_size (ie because num graphs not evenly divisible by batch_size)
+#0.6.5 fixed epoch counter bug
+#0.7.5 extracted scores with metadata and saved to csv
+#0.7.5 fixed tensor size alignment issue with scoresum extraction tensor.size [n] != size [1,n]
+#1.7.5 FULL RUN COMPLETE!
+#1.8.5 added call rate counter, included it in model results, included weighted score in model results, renamed model results csv. Saved the 
+#2.8.5 added two more convolution layers, two normalization layers, a dropout layer, and a second pooling layer. also softmaxxed the attention scores and took their product to output as the total graph attention score. 
+#2.9.5 added a notes feature
+#2.9.6 fixed misshape feed into sagpool caused by 2x attention heads and 2x hidden layer
+#2.10.6 activated all changes from 1.8.5 to 2.9.6.
+#2.11.6 added precision and f1 metrics. PROBLEM: IT ALWAYS PREDICTS THE SAME CLASS, sometimes 1, sometimes 0.
+#2.11.7 changed adam lr to .0001 from .01.
+#2.12.7 added the to.device() to accommodate gpu usage on hpc. model still runs on laptop
+#2.12.9 changed a bunch of slashes around to keep the hpc happy
+#2.12.11 more hpc grammar tweaks. script can't find pts/noedge_idx_0.pt
+#2.13.11 added device checker that's called for main model only and goes to model_notes. 
+#2.13.12 global variable for model_notes in the check_device function.
+#2.13.13 more signposting print statements for hpc
+#2.14.13 attempted to fix non-gpu tensor error by sending errant tensors to gpu and moving the todevice function to the top
+#2.15.13 fixed send to device error on line 208 in the node call rate calculator. 
+#2.16.13 added even more send to device errors
+#2.17.13 now you have to send all the outputs to cpu before you can save them.
+#2.18.14 added a parallelizer using nn.DataParallel. hopefully this will prevent crashing with 1 gpu. update: I stopped it early, but 99% confident it wont
+#2.19.15 manually set num_classes = 2 instead of using the dataset.num_classes in the lin layer. This method loads all data objects to gpu, resulting in gpu death. 
+#2.19.16 fixed batch size to 100, added print statements in more places, hopefully this will show up in o file
+#2.19.21 added a first pass of archetecture for synth data. running test now. 
+2.19.22 solved some issues with non-sparse synth data
+2.23.22 finally hit the directory name size limit. moved everything to C:/Users/username/OneDrive - Imperial College London/0_Imperial_main_asof_1.19.23/0Thesis_Project/0MAIN
+3.24.22 Synth works! however, the model can't really distinguish between 
+3.25.22 sucks on synth data 1 gene above mean sets outcome. radically simplifying model to 1 conv and one sagpool followed by meanpool
+
+#testing notes
+#t1: 10 cells loaded in dataset class with 50kb edge index w self loops. 
+# Dataset definition bottleneck solved. You shouldn't include raw file names you can't use. 
+# Performance is poor: only .4 acc on the test set.
+#t2: v0.5.2, 100 cells loaded w 50kb self loop edge index
+# runtime: ~5m per epoch, terminated after two epochs
+# performance on two epochs: train acc: .6 test acc: .3
+#t3: v1.8.5. 600s/epoch, 20ish mins(?) of class instantiation time
+#t4: v1.8.5 all excitatory cells, left to run overnight. failed because of memory overallocation
+#t5: v1.8.5 tried 20000 excitatory cells. failed because of memory overallocation. always step 1 of forward pass
+#t6: v1.8.5 tried 10000 excitatory cells. failed because of memory allocation.
+#t7: v1.8.5 tried 5000 excitatory cells. failed mem alloc. I think it's the batch size of 100, not the cell count. 
+#t8: v1.8.5 tried 1000 exctatory cells, batch soze = 10. ran fine. total time 14k sec. test acc .63. scores ar weird-- top 1000 all sam score. 
+#t9: v1.8.5 tried all excitatory cells, batch size = 10. 
+#t10: v2.10.6 tried 1000 excitatory cells, batch size = 10. computer froze.
+#t11: v2.10.6 rerun of t10
+#t12: v2.11.6 run of 100 cells, batch = 10. need some data for the visualizer. cpu crash. lowering batchs size to 2. 
+#t12: v2.11.6 run of 100 cells, batch = 2. no crash. still pred all the same values. 
+#t12: v2.11.7 run of 1000, batch = 5. new adam value .0001 from .01. see if it fixes the pred same prob. 
+#t13 v2.17.13 run on hpc. all cells, batch size = 30. ran out of memory and crashed, >20gb used. Reducing batch size, but that may not be hte issue.
+synth data used. 
+v0.2.1: making a 10 graph dataset with node 0 being the causal one
+v0.4.1: fixed up the notes to interrogate that it does what I want.
+v0.5.1: added the first case and control and edge index to the notes
+v0.5.2: fixed first case and control syntax
+v0.6.2: unknown changes.
+v0.7.2: added the target checker to the notes
+v0.8.2: added the graph_idx_list and pickler
+
+timestamp = 20230802_010708
+genex_num_nodes = 10
+genex_num_node_features = 1
+genex_mean = 5
+genex_std_dev = 1
+atac_num_nodes = 10
+atac_num_node_features = 1
+num_graphs = 10000
+target = genex_feature_matrix[0,0] > genex_mean
+len(graph_idx_list) = 10000 
+
+case_count = 4978
+control_count = 5022
+prop. cases = 0.4978
+prop. controls = 0.5022
+total run time = 28.57971501350403
+edge_index = tensor([[ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  0,  1,  2,  3,  4,  5,  6,  7,
+          8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+        [10, 11, 12, 13, 14, 15, 16, 17, 18, 19,  0,  1,  2,  3,  4,  5,  6,  7,
+          8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]])
+first_case_target = tensor([1])
+first_case_feature_matrix = tensor([[0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [5.5365],
+        [5.0126],
+        [5.0959],
+        [5.0062],
+        [5.7210],
+        [5.4023],
+        [7.2800],
+        [3.8624],
+        [4.2369],
+        [5.8316]])
+first_control_target = tensor([0])
+first_control_feature_matrix = tensor([[0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [0.0000],
+        [3.6417],
+        [4.2733],
+        [2.7259],
+        [3.2722],
+        [5.1475],
+        [5.4036],
+        [3.9361],
+        [5.8039],
+        [5.4723],
+        [6.2770]])
+
+#parameters
+synth_data = True
+synth_data_stamp_name = 20230802_010708 #only meaningful if synth_data = True
+hp_run = False
+num_graphs = 10000
+split_point_for_traintest = 8000
+num_epochs = 30
+batch_size = 100
+pooling_keep_count = 187215
+root_dir = synth_datasets/dataset_20230802_010708
+The model is on cpu. 
+ Epoch: 001 | epoch_time: 120.4 | Train Acc: 0.4994 | Train Prec: 0.0000 | Train F1: 0.0000 | Test Acc: 0.5135 | Test Prec: 0.0000 | Test F1: 0.0000 
+ Epoch: 002 | epoch_time: 120.6 | Train Acc: 0.5406 | Train Prec: 0.5225 | Train F1: 0.6761 | Test Acc: 0.5215 | Test Prec: 0.5043 | Test F1: 0.6620 
+ Epoch: 003 | epoch_time: 119.5 | Train Acc: 0.5006 | Train Prec: 0.5006 | Train F1: 0.6672 | Test Acc: 0.4865 | Test Prec: 0.4865 | Test F1: 0.6546 
+ Epoch: 004 | epoch_time: 120.1 | Train Acc: 0.5006 | Train Prec: 0.5006 | Train F1: 0.6672 | Test Acc: 0.4865 | Test Prec: 0.4865 | Test F1: 0.6546 
+ Epoch: 005 | epoch_time: 119.9 | Train Acc: 0.5011 | Train Prec: 0.5009 | Train F1: 0.6674 | Test Acc: 0.4865 | Test Prec: 0.4865 | Test F1: 0.6546 
+ Epoch: 006 | epoch_time: 108.2 | Train Acc: 0.5006 | Train Prec: 0.5006 | Train F1: 0.6672 | Test Acc: 0.4865 | Test Prec: 0.4865 | Test F1: 0.6546 
+ Epoch: 007 | epoch_time: 137.7 | Train Acc: 0.5012 | Train Prec: 0.5009 | Train F1: 0.6674 | Test Acc: 0.4870 | Test Prec: 0.4867 | Test F1: 0.6548 
+ Epoch: 008 | epoch_time: 128.8 | Train Acc: 0.5006 | Train Prec: 0.5006 | Train F1: 0.6672 | Test Acc: 0.4865 | Test Prec: 0.4865 | Test F1: 0.6546 
+ Epoch: 009 | epoch_time: 117.8 | Train Acc: 0.5018 | Train Prec: 0.5012 | Train F1: 0.6676 | Test Acc: 0.4875 | Test Prec: 0.4870 | Test F1: 0.6550 
+ Epoch: 010 | epoch_time: 118.5 | Train Acc: 0.5015 | Train Prec: 0.5011 | Train F1: 0.6671 | Test Acc: 0.4885 | Test Prec: 0.4875 | Test F1: 0.6554 
+ Epoch: 011 | epoch_time: 147.6 | Train Acc: 0.5018 | Train Prec: 0.5012 | Train F1: 0.6676 | Test Acc: 0.4875 | Test Prec: 0.4870 | Test F1: 0.6550 
+ Epoch: 012 | epoch_time: 138.8 | Train Acc: 0.5038 | Train Prec: 0.5022 | Train F1: 0.6674 | Test Acc: 0.4890 | Test Prec: 0.4877 | Test F1: 0.6552 
+ Epoch: 013 | epoch_time: 140.0 | Train Acc: 0.5024 | Train Prec: 0.5015 | Train F1: 0.6674 | Test Acc: 0.4890 | Test Prec: 0.4877 | Test F1: 0.6557 
+ Epoch: 014 | epoch_time: 98.5 | Train Acc: 0.5032 | Train Prec: 0.5020 | Train F1: 0.6675 | Test Acc: 0.4885 | Test Prec: 0.4875 | Test F1: 0.6552 
+ Epoch: 015 | epoch_time: 95.7 | Train Acc: 0.5806 | Train Prec: 0.5547 | Train F1: 0.6628 | Test Acc: 0.5670 | Test Prec: 0.5355 | Test F1: 0.6511 
+ Epoch: 016 | epoch_time: 99.1 | Train Acc: 0.5365 | Train Prec: 0.5200 | Train F1: 0.6753 | Test Acc: 0.5165 | Test Prec: 0.5016 | Test F1: 0.6606 
+ Epoch: 017 | epoch_time: 104.3 | Train Acc: 0.5182 | Train Prec: 0.5098 | Train F1: 0.6719 | Test Acc: 0.5000 | Test Prec: 0.4931 | Test F1: 0.6587 
+ Epoch: 018 | epoch_time: 90.7 | Train Acc: 0.5343 | Train Prec: 0.5187 | Train F1: 0.6745 | Test Acc: 0.5160 | Test Prec: 0.5013 | Test F1: 0.6608 
+ Epoch: 019 | epoch_time: 115.2 | Train Acc: 0.5406 | Train Prec: 0.5225 | Train F1: 0.6761 | Test Acc: 0.5190 | Test Prec: 0.5030 | Test F1: 0.6603 
+ Epoch: 020 | epoch_time: 121.0 | Train Acc: 0.5529 | Train Prec: 0.5304 | Train F1: 0.6758 | Test Acc: 0.5340 | Test Prec: 0.5115 | Test F1: 0.6616 
+ Epoch: 021 | epoch_time: 94.6 | Train Acc: 0.5068 | Train Prec: 0.5037 | Train F1: 0.6685 | Test Acc: 0.4905 | Test Prec: 0.4884 | Test F1: 0.6554 
+ Epoch: 022 | epoch_time: 88.2 | Train Acc: 0.5526 | Train Prec: 0.5303 | Train F1: 0.6758 | Test Acc: 0.5350 | Test Prec: 0.5121 | Test F1: 0.6626 
+ Epoch: 023 | epoch_time: 98.9 | Train Acc: 0.5409 | Train Prec: 0.5226 | Train F1: 0.6762 | Test Acc: 0.5190 | Test Prec: 0.5030 | Test F1: 0.6603 
+ Epoch: 024 | epoch_time: 139.1 | Train Acc: 0.5545 | Train Prec: 0.5318 | Train F1: 0.6740 | Test Acc: 0.5340 | Test Prec: 0.5117 | Test F1: 0.6581 
+ Epoch: 025 | epoch_time: 112.0 | Train Acc: 0.5715 | Train Prec: 0.5454 | Train F1: 0.6690 | Test Acc: 0.5505 | Test Prec: 0.5230 | Test F1: 0.6520 
+ Epoch: 026 | epoch_time: 98.4 | Train Acc: 0.5857 | Train Prec: 0.5612 | Train F1: 0.6566 | Test Acc: 0.5790 | Test Prec: 0.5458 | Test F1: 0.6495 
+ Epoch: 027 | epoch_time: 122.3 | Train Acc: 0.5891 | Train Prec: 0.5714 | Train F1: 0.6361 | Test Acc: 0.5875 | Test Prec: 0.5587 | Test F1: 0.6305 
+ Epoch: 028 | epoch_time: 126.7 | Train Acc: 0.5876 | Train Prec: 0.6061 | Train F1: 0.5500 | Test Acc: 0.5955 | Test Prec: 0.5995 | Test F1: 0.5498 
+ Epoch: 029 | epoch_time: 130.7 | Train Acc: 0.5899 | Train Prec: 0.5886 | Train F1: 0.5945 | Test Acc: 0.5945 | Test Prec: 0.5794 | Test F1: 0.5931 
+ Epoch: 030 | epoch_time: 144.3 | Train Acc: 0.5857 | Train Prec: 0.6133 | Train F1: 0.5302 | Test Acc: 0.5920 | Test Prec: 0.6034 | Test F1: 0.5289

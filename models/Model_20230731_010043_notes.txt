@@ -1,0 +1,67 @@
+ 
+
+#version notes
+#v0.2.1 you're going to load only the first 10 of the excitatory cells in the dataset class. 
+#v0.3.1 added sag pool, extracted summed the sagpool scores to scoresum, added model save function with timestamp
+#v0.4.1 added custom sag pool. See week 12 work notes for how to use. key feature: it returns an extra tensor with the complete sagpool scores.
+#problem: pre_drop_score_sum collects scores from all epochs during trainging. We really only want the scores from the last epoch.
+#v0.4.2 added total run time measurer
+#0.5.2 testing last-epoch only score collector
+#0.5.3 changed epoch runtime 
+#0.6.3 added the scoresum collector
+#0.6.4 fixed scoresum failing when run batch size != set batch_size (ie because num graphs not evenly divisible by batch_size)
+#0.6.5 fixed epoch counter bug
+#0.7.5 extracted scores with metadata and saved to csv
+#0.7.5 fixed tensor size alignment issue with scoresum extraction tensor.size [n] != size [1,n]
+#1.7.5 FULL RUN COMPLETE!
+#1.8.5 added call rate counter, included it in model results, included weighted score in model results, renamed model results csv. Saved the 
+#2.8.5 added two more convolution layers, two normalization layers, a dropout layer, and a second pooling layer. also softmaxxed the attention scores and took their product to output as the total graph attention score. 
+#2.9.5 added a notes feature
+#2.9.6 fixed misshape feed into sagpool caused by 2x attention heads and 2x hidden layer
+#2.10.6 activated all changes from 1.8.5 to 2.9.6.
+#2.11.6 added precision and f1 metrics. PROBLEM: IT ALWAYS PREDICTS THE SAME CLASS, sometimes 1, sometimes 0.
+#2.11.7 changed adam lr to .0001 from .01.
+#2.12.7 added the to.device() to accommodate gpu usage on hpc. model still runs on laptop
+#2.12.9 changed a bunch of slashes around to keep the hpc happy
+#2.12.11 more hpc grammar tweaks. script can't find pts/noedge_idx_0.pt
+#2.13.11 added device checker that's called for main model only and goes to model_notes. 
+#2.13.12 global variable for model_notes in the check_device function.
+#2.13.13 more signposting print statements for hpc
+#2.14.13 attempted to fix non-gpu tensor error by sending errant tensors to gpu and moving the todevice function to the top
+#2.15.13 fixed send to device error on line 208 in the node call rate calculator. 
+#2.16.13 added even more send to device errors
+#2.17.13 now you have to send all the outputs to cpu before you can save them.
+
+#testing notes
+#t1: 10 cells loaded in dataset class with 50kb edge index w self loops. 
+# Dataset definition bottleneck solved. You shouldn't include raw file names you can't use. 
+# Performance is poor: only .4 acc on the test set.
+#t2: v0.5.2, 100 cells loaded w 50kb self loop edge index
+# runtime: ~5m per epoch, terminated after two epochs
+# performance on two epochs: train acc: .6 test acc: .3
+#t3: v1.8.5. 600s/epoch, 20ish mins(?) of class instantiation time
+#t4: v1.8.5 all excitatory cells, left to run overnight. failed because of memory overallocation
+#t5: v1.8.5 tried 20000 excitatory cells. failed because of memory overallocation. always step 1 of forward pass
+#t6: v1.8.5 tried 10000 excitatory cells. failed because of memory allocation.
+#t7: v1.8.5 tried 5000 excitatory cells. failed mem alloc. I think it's the batch size of 100, not the cell count. 
+#t8: v1.8.5 tried 1000 exctatory cells, batch soze = 10. ran fine. total time 14k sec. test acc .63. scores ar weird-- top 1000 all sam score. 
+#t9: v1.8.5 tried all excitatory cells, batch size = 10. 
+#t10: v2.10.6 tried 1000 excitatory cells, batch size = 10. computer froze.
+#t11: v2.10.6 rerun of t10
+#t12: v2.11.6 run of 100 cells, batch = 10. need some data for the visualizer. cpu crash. lowering batchs size to 2. 
+#t12: v2.11.6 run of 100 cells, batch = 2. no crash. still pred all the same values. 
+#t12: v2.11.7 run of 1000, batch = 5. new adam value .0001 from .01. see if it fixes the pred same prob. 
+
+
+
+#parameters
+num_graphs = 4
+split_point_for_traintest = 3
+num_epochs = 3
+batch_size = 2
+pooling_keep_count = 187215
+root_dir = pts
+The model is on cuda:0. 
+ Epoch: 001 | epoch_time: 14.8 | Train Acc: 0.6667 | Train Prec: 0.0000 | Train F1: 0.0000 | Test Acc: 1.0000 | Test Prec: 0.0000 | Test F1: 0.0000 
+ Epoch: 002 | epoch_time: 8.7 | Train Acc: 0.6667 | Train Prec: 0.0000 | Train F1: 0.0000 | Test Acc: 1.0000 | Test Prec: 0.0000 | Test F1: 0.0000 
+ Epoch: 003 | epoch_time: 8.9 | Train Acc: 0.6667 | Train Prec: 0.0000 | Train F1: 0.0000 | Test Acc: 1.0000 | Test Prec: 0.0000 | Test F1: 0.0000
