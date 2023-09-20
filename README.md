@@ -4,7 +4,7 @@
 ## Research Question
 Can the attention mechanism from a Graph Attention Network (GAT) be used in a pooling layer to identify gene expressions that characterize cellular disease state?
 ### Aim 1: Compare GAT Pooling to TWAS on synthetic dataset
-### Aim 2: Test 
+### Aim 2: Test model on Alzheimer's Dementia Dataset
 
 ### Novelty
 - Novel use of attention in the pooling layer rather than message passing layer of a GAT classification model 
