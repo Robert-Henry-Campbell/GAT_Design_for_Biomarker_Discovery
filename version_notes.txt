@@ -1,0 +1,50 @@
+#version notes
+#v0.2.1 you're going to load only the first 10 of the excitatory cells in the dataset class. 
+#v0.3.1 added sag pool, extracted summed the sagpool scores to scoresum, added model save function with timestamp
+#v0.4.1 added custom sag pool. See week 12 work notes for how to use. key feature: it returns an extra tensor with the complete sagpool scores.
+#problem: pre_drop_score_sum collects scores from all epochs during trainging. We really only want the scores from the last epoch.
+#v0.4.2 added total run time measurer
+#0.5.2 testing last-epoch only score collector
+#0.5.3 changed epoch runtime 
+#0.6.3 added the scoresum collector
+#0.6.4 fixed scoresum failing when run batch size != set batch_size (ie because num graphs not evenly divisible by batch_size)
+#0.6.5 fixed epoch counter bug
+#0.7.5 extracted scores with metadata and saved to csv
+#0.7.5 fixed tensor size alignment issue with scoresum extraction tensor.size [n] != size [1,n]
+#1.7.5 FULL RUN COMPLETE!
+#1.8.5 added call rate counter, included it in model results, included weighted score in model results, renamed model results csv. Saved the 
+#2.8.5 added two more convolution layers, two normalization layers, a dropout layer, and a second pooling layer. also softmaxxed the attention scores and took their product to output as the total graph attention score. 
+#2.9.5 added a notes feature
+#2.9.6 fixed misshape feed into sagpool caused by 2x attention heads and 2x hidden layer
+#2.10.6 activated all changes from 1.8.5 to 2.9.6.
+#2.11.6 added precision and f1 metrics. PROBLEM: IT ALWAYS PREDICTS THE SAME CLASS, sometimes 1, sometimes 0.
+#2.11.7 changed adam lr to .0001 from .01.
+#2.12.7 added the to.device() to accommodate gpu usage on hpc. model still runs on laptop
+#2.12.9 changed a bunch of slashes around to keep the hpc happy
+#2.12.11 more hpc grammar tweaks. script can't find pts/noedge_idx_0.pt
+#2.13.11 added device checker that's called for main model only and goes to model_notes. 
+#2.13.12 global variable for model_notes in the check_device function.
+#2.13.13 more signposting print statements for hpc
+#2.14.13 attempted to fix non-gpu tensor error by sending errant tensors to gpu and moving the todevice function to the top
+#2.15.13 fixed send to device error on line 208 in the node call rate calculator. 
+#2.16.13 added even more send to device errors
+#2.17.13 now you have to send all the outputs to cpu before you can save them.
+#2.18.14 added a parallelizer using nn.DataParallel. hopefully this will prevent crashing with 1 gpu. update: I stopped it early, but 99% confident it wont
+#2.19.15 manually set num_classes = 2 instead of using the dataset.num_classes in the lin layer. This method loads all data objects to gpu, resulting in gpu death. 
+#2.19.16 fixed batch size to 100, added print statements in more places, hopefully this will show up in o file
+#2.19.21 added a first pass of archetecture for synth data. running test now. 
+2.19.22 solved some issues with non-sparse synth data
+2.23.22 finally hit the directory name size limit. moved everything to C:/Users/username/OneDrive - Imperial College London/0_Imperial_main_asof_1.19.23/0Thesis_Project/0MAIN
+3.24.22 Synth works! however, the model can't really distinguish between 
+3.25.22 sucks on synth data 1 gene above mean sets outcome. radically simplifying model to 1 conv and one sagpool followed by meanpool
+3.26.22 added timestamp to model notes-- needed to connect job number on model runs to written output. 
+3.27.22 removed the step printing. 
+3.28.22 made learning rate a parameter and set from .0001 to .01
+3.30.22 added metrics by epoch csv output and predropscores by epoch csv output. graph them to see how ht emodel learns over time. 
+3.31.22 fixed call rate with category vector in synth data. note: call rate for real data with category vector will still be wrong. 
+3.38.22 Unsoftmaxing the attention score. This will undo normalization, but allow negative values to shine. also doing two convolutions before the pool isntead of 1. 
+3.40.22 send the tensors for predrop by epoch list to cpu. check line 496. unknown if this will work
+3.41.22 added num_heads as a parameter and increased from 2 to 8. 
+3.42.22 num_heads bug fixed
+4.42.22: added call rate to feature matrix
+callrate 5.46.24: the callrate works on batch 1, cell count 100 on hpc. performance unknown yet. 
