@@ -1,4 +1,7 @@
-Below is a concise, professional README suited for your project. It conveys the research context, highlights the novel approach, and explains how to set up and use the code. Feel free to adjust any details (especially installation commands or file paths) to match your workflow.
+#Context
+
+This is a legacy project from my MSC thesis and reprepresents my first project designing machine learning archetecture at scale on an HPC environment. The code is functional but does not use best practices (modular/scalable/testable), and is not how I would structure a similarly sized project today. For an example of an up-to-date project structure, consider my repo "Translational_Geroprotective_Molecule_Discovery" which covers my ongoing PhD work translating longevity therapies from mice to humans using causal genomic tools. 
+
 
 ---
 
