@@ -1,0 +1,21 @@
+#testing notes
+#t1: 10 cells loaded in dataset class with 50kb edge index w self loops. 
+# Dataset definition bottleneck solved. You shouldn't include raw file names you can't use. 
+# Performance is poor: only .4 acc on the test set.
+#t2: v0.5.2, 100 cells loaded w 50kb self loop edge index
+# runtime: ~5m per epoch, terminated after two epochs
+# performance on two epochs: train acc: .6 test acc: .3
+#t3: v1.8.5. 600s/epoch, 20ish mins(?) of class instantiation time
+#t4: v1.8.5 all excitatory cells, left to run overnight. failed because of memory overallocation
+#t5: v1.8.5 tried 20000 excitatory cells. failed because of memory overallocation. always step 1 of forward pass
+#t6: v1.8.5 tried 10000 excitatory cells. failed because of memory allocation.
+#t7: v1.8.5 tried 5000 excitatory cells. failed mem alloc. I think it's the batch size of 100, not the cell count. 
+#t8: v1.8.5 tried 1000 exctatory cells, batch soze = 10. ran fine. total time 14k sec. test acc .63. scores ar weird-- top 1000 all sam score. 
+#t9: v1.8.5 tried all excitatory cells, batch size = 10. 
+#t10: v2.10.6 tried 1000 excitatory cells, batch size = 10. computer froze.
+#t11: v2.10.6 rerun of t10
+#t12: v2.11.6 run of 100 cells, batch = 10. need some data for the visualizer. cpu crash. lowering batchs size to 2. 
+#t12: v2.11.6 run of 100 cells, batch = 2. no crash. still pred all the same values. 
+#t12: v2.11.7 run of 1000, batch = 5. new adam value .0001 from .01. see if it fixes the pred same prob. 
+#t13 v2.17.13 run on hpc. all cells, batch size = 30. ran out of memory and crashed, >20gb used. Reducing batch size, but that may not be hte issue.
+#t14 v3.28.22 on synth data 20230802_222843. IT WORKS! YOU NEEDED TO ESTABLISH NODE TYPE!!!! 
