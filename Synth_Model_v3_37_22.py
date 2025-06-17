@@ -1,9 +1,7 @@
 #full model set for hpc (includes attempts to send to gpu)
 print('importing packages')
-import subprocess
-import sys
-def install_package(package): #install packages with this tool | Example usage: install_package("torchmetrics")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+# Install dependencies before running:
+#   pip install -r requirements.txt
 import os
 import os.path as osp
 import torch
