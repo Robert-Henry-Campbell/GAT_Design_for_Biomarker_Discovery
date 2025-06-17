@@ -4,6 +4,9 @@ import pandas as pd
 import torch
 import torchmetrics
 import matplotlib.pyplot as plt
+from config import CONFIG
+
+num_epochs = CONFIG.num_epochs
 
 
 def train():
