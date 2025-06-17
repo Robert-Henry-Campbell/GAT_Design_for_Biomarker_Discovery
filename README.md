@@ -1,124 +1,52 @@
-# Context - Legacy Code
+# GAT Design for Biomarker Discovery
 
-This is a legacy project from my MSC thesis and reprepresents my first project designing machine learning archetecture at scale on an HPC environment. The code is functional but does not use best practices (modular/scalable/testable), and is not how I would structure a similarly sized project today. For an example of an up-to-date project structure, consider my repo "Translational_Geroprotective_Molecule_Discovery" which covers my ongoing PhD work translating longevity therapies from mice to humans using causal genomic tools. 
+This repository contains research code from a master's thesis exploring **graph attention networks (GATs)** for classifying single--cell multi--omic data. The goal is to use attention scores to highlight genes that may act as biomarkers of disease.
 
+The code is largely experimental and was originally developed for a high performance computing (HPC) environment. Several scripts write intermediate results and models to disk. Paths may need adjusting if you run the code on a different system.
 
----
+## Contents
 
-# Single-Cell Multi-Omics Graph Attention Network
+- `Complete_Model_HPC_callrate_v5_45_24.py` – main training script for real data
+- `Synth_Model_v3_37_22.py` – simplified model for synthetic data experiments
+- `sag_pool_custom.py` – custom self--attention graph pooling layer
+- `dic_pickles/` – pickled metadata dictionaries for features and nodes
+- `edge_indices/` – prebuilt adjacency matrices
+- `graph_idx/` – graph index lists for training subsets
+- `models/` and `synth_models/` – saved models, metrics and call rate files
+- `testing_notes` and `version_notes.txt` – development notes
 
-This repository explores using **Graph Attention Networks (GATs)** for classifying single-cell **RNA-seq/ATAC-seq** data with an emphasis on **attention-based pooling**. The main goal is to identify which gene expressions (and potential regulatory regions) define disease states.
+## Requirements
 
-## Research Motivation
+Python 3.8+ with the packages listed in `requirements.txt`. PyTorch and PyTorch Geometric are required for model training.
 
-- **Question**: Can the attention scores in a GAT pooling layer detect critical gene signals associated with disease states as effectively as standard approaches like TWAS (Transcriptome-Wide Association Study)?  
-- **Focus**: Compare synthetic datasets (Aim 1) against an Alzheimer’s dementia dataset (Aim 2).  
-- **Novelty**: Incorporating self-attention directly in the **pooling layer** (instead of the usual message-passing layer) to potentially yield more biologically interpretable results.
-
-## Methods Overview
-
-1. **Data Integration**:  
-   - Multi-omics single-cell data combining RNA-seq and ATAC-seq.  
-   - Synthetic datasets for method development and baseline comparisons.  
-   - Alzheimer’s dementia dataset from [Cell Genomics](https://www.cell.com/cell-genomics/fulltext/S2666-979X(23)00019-8#sectitle0030).
-
-2. **Model Architecture**:  
-   - **Layer 1**: GAT message-passing layer for feature transformation.  
-   - **Layer 2**: **Attention-based pooling**, where node scores guide which genes (nodes) remain in the graph.  
-   - **Layer 3**: Fully connected classification layer predicting disease status.
-
-3. **Performance Metrics**:  
-   - **Macro F1**, precision, recall.  
-   - **Attention metrics** (score separation, clustering) to assess interpretability.
-
-## Repository Structure
-
-```bash
-drug_mr_project/
-├── data/
-│   ├── drug_a/                   
-│   │   ├── strategy_a
-│   │   │   ├── raw/               # CSVs for each gene's QTL data
-│   │   │   └── processed/         # Final SNP sets after QC
-├── results/
-│   ├── figures/                   # Model plots
-│   └── tables/                    # Numerical outputs
-├── config/
-│   ├── pipeline_params.yaml       # Pipeline params (p-value thresholds, etc.)
-│   └── drug_confounders.yaml      # Per-drug confounder sets for queries
-├── src/
-│   ├── qc/
-│   │   ├── filter_snps.py
-│   │   ├── ld_clump.py
-│   │   ├── compute_Fstats.py
-│   │   ├── phenoscanner.py
-│   │   └── ...
-│   ├── harmonize/
-│   │   └── harmonize_snps.py
-│   ├── mr/
-│   │   └── run_mr.py
-│   ├── utils/
-│   │   └── i_o.py
-│   └── pipeline.py
-├── dic_pickles/                   # Feature & node metadata dictionaries
-├── edge_indices/                  # Edge index files for adjacency
-├── graph_idx/                     # Graph index files for subsets
-├── models/                        # Trained models & results
-├── environment.yml                # Conda environment specification
-└── README.md                      # Project documentation
+```
+python -m pip install -r requirements.txt
 ```
 
-## Setup & Installation
+## Quick Start
 
-1. **Clone this repository**:
-   ```bash
-   git clone https://github.com/vessacks/Translational_Geroprotective_Molecule_Discovery.git
-   cd Translational_Geroprotective_Molecule_Discovery
-   ```
+1. Prepare your feature dictionaries, edge index tensors and graph index lists as provided in the `dic_pickles/`, `edge_indices/` and `graph_idx/` folders.
+2. Adjust any paths or parameters at the top of the desired training script.
+3. Run the model:
 
-2. **Create Conda Environment** (recommended):
-   ```bash
-   conda env create -f environment.yml
-   conda activate drug_mr_project
-   ```
-   Or install required Python packages manually (e.g., `torch-geometric`, `pandas`, `matplotlib`).
-
-3. **Data Preparation**:
-   - Place your single-cell data, pickled dictionaries, and edge indices in their respective folders (see “Repository Structure”).
-   - Adjust any file paths in `config/pipeline_params.yaml` or script arguments.
-
-## Usage
-
-- **Training**:  
-  - Edit parameters at the top of `src/pipeline.py` (e.g., `num_epochs`, `batch_size`) to match your system or HPC settings.  
-  - Run the model:
-    ```bash
-    python src/pipeline.py
-    ```
-  - The script saves metrics, model checkpoints, and plots in the `models/` folder.
-
-- **Analysis**:  
-  - Results can be found in CSV files in `models/` or in `results/tables/` for aggregated metrics.  
-  - Figures (e.g., training curves) are automatically stored in `results/figures/`.
-
-## Current Findings
-
-- Preliminary results on synthetic data suggest that GAT pooling attention scores can highlight feature groups indicative of phenotypic differences.
-- Real-world single-cell datasets require careful hyperparameter tuning (batch size, pooling ratio, etc.) due to large memory demands.
-
-## Contributing
-
-We welcome suggestions or pull requests. Contact:
 ```
-Name: Robert Campbell
-Email: h.robert.campbell@gmail.com
-Institution: Nuffield Department of Population Health, Oxford University
+python Complete_Model_HPC_callrate_v5_45_24.py
 ```
 
-## License
+Synthetic data experiments can be executed with `Synth_Model_v3_37_22.py`.
 
-Please check the repository’s LICENSE file or add one if needed. In the absence of a separate license, all rights are reserved by the author(s).
+## Testing
 
----
+This project does not ship with unit tests. To ensure that the Python files have valid syntax you can run:
 
-Feel free to customize the above sections to fit your latest workflows, rename directories, or reorganize content as your project evolves.
+```
+python -m py_compile $(git ls-files '*.py')
+```
+
+## License and Citation
+
+No explicit license is provided. All rights remain with the original author. If you use this code in academic work, please cite this repository.
+
+## Contact
+
+Robert Campbell – [h.robert.campbell@gmail.com](mailto:h.robert.campbell@gmail.com)
