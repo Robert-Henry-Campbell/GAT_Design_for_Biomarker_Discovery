@@ -9,16 +9,17 @@ from config import CONFIG
 num_epochs = CONFIG.num_epochs
 
 
-def train():
+def train(model, loader, criterion, optimizer, device):
+    """Train ``model`` for one epoch using ``loader``."""
     model.train()
 
-    for data in train_loader:
+    for data in loader:
         data.x = data.x.to(device)
         data.edge_index = data.edge_index.to(device)
         data.batch = data.batch.to(device)
         data.y = data.y.to(device)
 
-        out, pre_drop_score = model(data.x, data.edge_index, data.batch)
+        out, _ = model(data.x, data.edge_index, data.batch)
         loss = criterion(out, data.y)
         loss.backward()
         optimizer.step()
@@ -26,7 +27,9 @@ def train():
 
 predrop_by_epoch_list = []
 
-def test(loader):
+
+def test(model, loader, epoch, num_epochs, device, num_nodes, pre_drop_score_sum, predrop_by_epoch_list, batch_size):
+    """Evaluate ``model`` using ``loader`` and update score collections."""
     model.eval()
 
     metric_precision = torchmetrics.Precision(task='binary', average='macro').to(device)
@@ -44,23 +47,22 @@ def test(loader):
         out, pre_drop_score = model(data.x, data.edge_index, data.batch)
 
         if epoch == num_epochs:
-            global pre_drop_score_sum
             pre_drop_score_sum = pre_drop_score_sum.to(device)
             batched_pre_drop_scores = pre_drop_score.detach()
-            num_graphs_in_batch = batched_pre_drop_scores.size()[0] / datafirst.num_nodes
+            num_graphs_in_batch = batched_pre_drop_scores.size()[0] / num_nodes
             assert (
-                batched_pre_drop_scores.size()[0] / datafirst.num_nodes
+                batched_pre_drop_scores.size()[0] / num_nodes
             ).is_integer(), (
-                f"num nodes in batch = {num_graphs_in_batch}, not evenly divisble by {datafirst.num_nodes}"
+                f"num nodes in batch = {num_graphs_in_batch}, not evenly divisble by {num_nodes}"
             )
             num_graphs_in_batch = int(num_graphs_in_batch)
-            unbatched_pre_drop_scores = batched_pre_drop_scores.view(num_graphs_in_batch, datafirst.num_nodes)
+            unbatched_pre_drop_scores = batched_pre_drop_scores.view(num_graphs_in_batch, num_nodes)
             split_pre_drop_scores = torch.split(unbatched_pre_drop_scores, split_size_or_sections=1, dim=0)
 
             for i, graph_pre_drop_score in enumerate(split_pre_drop_scores):
                 assert graph_pre_drop_score.shape == (
                     1,
-                    datafirst.num_nodes,
+                    num_nodes,
                 ), f"graph_pre_drop_score {i} has incorrect shape {graph_pre_drop_score.shape}"
                 pre_drop_score_sum += graph_pre_drop_score.squeeze()
 
@@ -68,17 +70,16 @@ def test(loader):
                 f"Not all values from the original tensor were used, expected {batch_size} tensors, got {len(split_pre_drop_scores)}"
             )
         else:
-            global predrop_by_epoch_list
-            single_batch_scoresum = torch.zeros(dataset[0].num_nodes).to(device)
+            single_batch_scoresum = torch.zeros(num_nodes).to(device)
             batched_pre_drop_scores = pre_drop_score.detach()
-            num_graphs_in_batch = batched_pre_drop_scores.size()[0] / datafirst.num_nodes
+            num_graphs_in_batch = batched_pre_drop_scores.size()[0] / num_nodes
             assert (
-                batched_pre_drop_scores.size()[0] / datafirst.num_nodes
+                batched_pre_drop_scores.size()[0] / num_nodes
             ).is_integer(), (
-                f"num nodes in batch = {num_graphs_in_batch}, not evenly divisble by {datafirst.num_nodes}"
+                f"num nodes in batch = {num_graphs_in_batch}, not evenly divisble by {num_nodes}"
             )
             single_batch_scoresum = torch.sum(
-                batched_pre_drop_scores.view(int(num_graphs_in_batch), datafirst.num_nodes), dim=0
+                batched_pre_drop_scores.view(int(num_graphs_in_batch), num_nodes), dim=0
             )
             predrop_by_epoch_list.append({epoch: single_batch_scoresum.cpu().numpy()})
 
@@ -100,10 +101,31 @@ def run_training():
     print('starting the epochs...')
     epoch_start_time = time.time()
     metrics_list = []
+    num_nodes = dataset[0].num_nodes
     for epoch in range(1, num_epochs + 1):
-        train()
-        train_acc, train_prec, train_f1 = test(train_loader)
-        test_acc, test_prec, test_f1 = test(test_loader)
+        train(model, train_loader, criterion, optimizer, device)
+        train_acc, train_prec, train_f1 = test(
+            model,
+            train_loader,
+            epoch,
+            num_epochs,
+            device,
+            num_nodes,
+            pre_drop_score_sum,
+            predrop_by_epoch_list,
+            batch_size,
+        )
+        test_acc, test_prec, test_f1 = test(
+            model,
+            test_loader,
+            epoch,
+            num_epochs,
+            device,
+            num_nodes,
+            pre_drop_score_sum,
+            predrop_by_epoch_list,
+            batch_size,
+        )
         metrics = (
             f" \n Epoch: {epoch:03d} | epoch_time: {round(time.time()-epoch_start_time,1)} | "
             f"Train Acc: {train_acc:.4f} | Train Prec: {train_prec:.4f} | Train F1: {train_f1:.4f} | "
