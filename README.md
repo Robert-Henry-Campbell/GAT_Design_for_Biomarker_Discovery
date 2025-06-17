@@ -37,9 +37,16 @@ Synthetic data experiments can be executed with `Synth_Model_v3_37_22.py`.
 
 ## Testing
 
-This project does not ship with unit tests. To ensure that the Python files have valid syntax you can run:
+Unit tests live in the `tests/` directory. The file `tests/test_gat_small.py`
+exercises a minimal GAT model. Run it with `pytest`:
 
+```bash
+pytest tests/test_gat_small.py
 ```
+
+You can also verify that all Python files compile:
+
+```bash
 python -m py_compile $(git ls-files '*.py')
 ```
 
