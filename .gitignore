@@ -1,0 +1,43 @@
+# Ignore compiled Python files
+__pycache__/
+*.py[cod]
+
+# Ignore environment and build directories
+.env
+venv/
+env/
+ENV/
+.Python
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE settings
+.vscode/
+.idea/
+
+# Large output directories
+models/
+synth_models/
+edge_indices/
+graph_idx/
+dic_pickles/
+testing_notes/
+
+# Intermediate results and checkpoints
+*.pt
+*.pth
+*_results.csv
+*_call_rate.pt
+*_metrics_by_epoch.csv
+*_predrop_scores_by_epoch.csv
+*_scores_by_epoch.png
+*_train_metrics_by_epoch.png
+*_test_metrics_by_epoch.png
+*_train_test_loss_by_epoch.png
+*_notes.txt
