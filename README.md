@@ -33,6 +33,18 @@ python -m pip install -r requirements.txt
 python Complete_Model_HPC_callrate_v5_45_24.py
 ```
 
+### Configuration Selection
+
+The file `config.py` contains example settings for running either locally or on
+an HPC cluster. By default the local configuration is used. Set the environment
+variable `GAT_CONFIG` to `HPC` before executing a script to switch to the HPC
+configuration:
+
+```bash
+export GAT_CONFIG=HPC
+python Complete_Model_HPC_callrate_v5_45_24.py
+```
+
 Synthetic data experiments can be executed with `Synth_Model_v3_37_22.py`.
 
 ## Testing

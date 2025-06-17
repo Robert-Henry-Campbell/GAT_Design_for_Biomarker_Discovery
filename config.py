@@ -29,5 +29,11 @@ LOCAL_CONFIG = Config(
     num_epochs=10,
 )
 
-# Select which configuration to use
-CONFIG = HPC_CONFIG
+# Select which configuration to use based on environment variable
+import os
+
+# Set the environment variable ``GAT_CONFIG`` to ``"HPC"`` to use ``HPC_CONFIG``.
+# Any other value (or if the variable is unset) will fall back to ``LOCAL_CONFIG``.
+use_hpc = os.getenv("GAT_CONFIG", "LOCAL").upper() == "HPC"
+
+CONFIG = HPC_CONFIG if use_hpc else LOCAL_CONFIG
