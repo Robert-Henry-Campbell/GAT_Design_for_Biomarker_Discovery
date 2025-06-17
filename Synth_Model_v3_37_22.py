@@ -504,165 +504,168 @@ def test(loader):
     return accuracy, precision, f1
 
 
-print('train and test defined')
-print('starting the epochs...')
-#eochs with 4 graphs takes a minute total with 4 cells, no self edge 50kb
-epoch_start_time = time.time()
-metrics_list = []
-for epoch in range(1, num_epochs+1):
-    train()
-    train_acc, train_prec, train_f1 = test(train_loader)
-    test_acc, test_prec, test_f1 = test(test_loader)
-    metrics = (f' \n Epoch: {epoch:03d} | epoch_time: {round(time.time()-epoch_start_time,1)} | Train Acc: {train_acc:.4f} | Train Prec: {train_prec:.4f} | Train F1: {train_f1:.4f} | Test Acc: {test_acc:.4f} | Test Prec: {test_prec:.4f} | Test F1: {test_f1:.4f}' )
-    print(metrics)
-    model_notes += metrics
-
-    metrics_list.append({
-        'Epoch': epoch,
-        'Train_Acc': train_acc,
-        'Train_Prec': train_prec.item(),
-        'Train_F1': train_f1.item(),
-        'Test_Acc': test_acc,
-        'Test_Prec': test_prec.item(),
-        'Test_F1': test_f1.item()
-    })
-
+def main():
+    print('train and test defined')
+    print('starting the epochs...')
+    #eochs with 4 graphs takes a minute total with 4 cells, no self edge 50kb
     epoch_start_time = time.time()
+    metrics_list = []
+    for epoch in range(1, num_epochs+1):
+        train()
+        train_acc, train_prec, train_f1 = test(train_loader)
+        test_acc, test_prec, test_f1 = test(test_loader)
+        metrics = (f' \n Epoch: {epoch:03d} | epoch_time: {round(time.time()-epoch_start_time,1)} | Train Acc: {train_acc:.4f} | Train Prec: {train_prec:.4f} | Train F1: {train_f1:.4f} | Test Acc: {test_acc:.4f} | Test Prec: {test_prec:.4f} | Test F1: {test_f1:.4f}' )
+        print(metrics)
+        model_notes += metrics
 
-print('training complete, moving to saving results')
+        metrics_list.append({
+            'Epoch': epoch,
+            'Train_Acc': train_acc,
+            'Train_Prec': train_prec.item(),
+            'Train_F1': train_f1.item(),
+            'Test_Acc': test_acc,
+            'Test_Prec': test_prec.item(),
+            'Test_F1': test_f1.item()
+        })
 
-# Function to generate the timestamp
-def get_timestamp():
-    now = datetime.datetime.now()
-    timestamp = now.strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
-    return timestamp
+        epoch_start_time = time.time()
 
-#set single timestamp for matching score and model names
-timestamp = get_timestamp()
-model_notes += f"timestamp : {timestamp}"
-
-#make a pd dataframe of the scores
-# Create a DataFrame with node IDs and their corresponding scores
-model_results_df = pd.DataFrame({
-    'node_id': range(len(pre_drop_score_sum.cpu())),
-    'score': pre_drop_score_sum.cpu().numpy(),
-    'call_rate': node_call_rate.cpu().numpy(),
-    #'weighted_score': pre_drop_score_sum.cpu().numpy() % node_call_rate.cpu().numpy() #look up how to do tensor division
-})
-
-#set the path where results will be saved. 
-if synth_data == True:
-    outputs_folder = "synth_models"
-else:
-    outputs_folder = "models"
-
-
-#if it's a true model, you add node metadata to results 
-if synth_data == False:
-    #for each node, we want to add the metadata
-    #this takes about 20 mins on the laptop: huge time sink. You could pre-make the metadata part of the df to speed it up
-    for node_id in model_results_df['node_id']:
-        metadata_series = id_to_node_metadata[node_id][1]
-        for column, value in metadata_series.items():
-            model_results_df.loc[model_results_df['node_id'] == node_id, column] = value
-    # Set the node_id as the index of the DataFrame
-    model_results_df.set_index('node_id', inplace=True)
-    #save results to a csv
-    model_results_df.to_csv(f"{outputs_folder}/Model_{timestamp}_results.csv", index = False)
-else:  #save model results without appending node metadata
-    #save results to a csv
-    model_results_df.to_csv(f"{outputs_folder}/Model_{timestamp}_results.csv")
-
-#save call rate to a pt
-call_rate_filename = f"{outputs_folder}/Model_{timestamp}_call_rate.pt"
-torch.save(node_call_rate.cpu(), call_rate_filename)
-
-#save notes to a txt file
-with open(f"{outputs_folder}/Model_{timestamp}_notes.txt",'w') as notes_file:
-    notes_file.write(model_notes)
-
-# Create an metrics by epoch DataFrame from list
-metrics_by_epoch_df = pd.DataFrame(metrics_list)
-# Save metrics by epoch to csv
-metrics_by_epoch_filename = f"{outputs_folder}/Model_{timestamp}_metrics_by_epoch.csv"
-metrics_by_epoch_df.to_csv(metrics_by_epoch_filename, index=False)
-
-#plot the training metrics by epoch
-metrics_by_epoch_df.plot(x='Epoch', y=['Train_Acc', 'Train_Prec', 'Train_F1'],kind='line', title='Training Performance', grid=True)
-plt.xlabel('Epoch')
-plt.ylabel('Performance')
-plt.savefig(f"{outputs_folder}/Model_{timestamp}_train_metrics_by_epoch.png",dpi=300)
-plt.clf()
-
-#plot the test metrics by epoch
-metrics_by_epoch_df.plot(x='Epoch', y=['Test_Acc', 'Test_Prec', 'Test_F1'],kind='line', title='Test Performance', grid=True)
-plt.xlabel('Epoch')
-plt.ylabel('Performance')
-plt.savefig(f"{outputs_folder}/Model_{timestamp}_test_metrics_by_epoch.png",dpi=300)
-plt.clf()
-
-#train vs test by epoch
-metrics_by_epoch_df.plot(x='Epoch', y=['Test_F1', 'Train_F1'],kind='line', title='Test vs Train F1', grid=True)
-plt.xlabel('Epoch')
-plt.ylabel('Performance')
-plt.savefig(f"{outputs_folder}/Model_{timestamp}_train_test_loss_by_epoch.png",dpi=300)
-plt.clf()
-
-#aggreaget the predrop by epoch scores to be summed across epochs, not batches
-# Initialize an aggregation dictionary
-aggregated_tensors = {}
-
-# Loop and aggregate
-for d in predrop_by_epoch_list:
-    for key, tensor in d.items():
-        if key in aggregated_tensors:
-            # Add to the existing tensor
-            aggregated_tensors[key] += tensor
+        print('training complete, moving to saving results')
+    
+    # Function to generate the timestamp
+    def get_timestamp():
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%Y%m%d_%H%M%S")  # Format: YYYYMMDD_HHMMSS
+        return timestamp
+        
+        #set single timestamp for matching score and model names
+        timestamp = get_timestamp()
+        model_notes += f"timestamp : {timestamp}"
+        
+        #make a pd dataframe of the scores
+        # Create a DataFrame with node IDs and their corresponding scores
+        model_results_df = pd.DataFrame({
+            'node_id': range(len(pre_drop_score_sum.cpu())),
+            'score': pre_drop_score_sum.cpu().numpy(),
+            'call_rate': node_call_rate.cpu().numpy(),
+            #'weighted_score': pre_drop_score_sum.cpu().numpy() % node_call_rate.cpu().numpy() #look up how to do tensor division
+        })
+        
+        #set the path where results will be saved. 
+        if synth_data == True:
+            outputs_folder = "synth_models"
         else:
-            # Create a new entry
-            aggregated_tensors[key] = tensor
+            outputs_folder = "models"
+        
+        
+        #if it's a true model, you add node metadata to results 
+        if synth_data == False:
+            #for each node, we want to add the metadata
+            #this takes about 20 mins on the laptop: huge time sink. You could pre-make the metadata part of the df to speed it up
+            for node_id in model_results_df['node_id']:
+                metadata_series = id_to_node_metadata[node_id][1]
+                for column, value in metadata_series.items():
+                    model_results_df.loc[model_results_df['node_id'] == node_id, column] = value
+            # Set the node_id as the index of the DataFrame
+            model_results_df.set_index('node_id', inplace=True)
+            #save results to a csv
+            model_results_df.to_csv(f"{outputs_folder}/Model_{timestamp}_results.csv", index = False)
+        else:  #save model results without appending node metadata
+            #save results to a csv
+            model_results_df.to_csv(f"{outputs_folder}/Model_{timestamp}_results.csv")
+        
+        #save call rate to a pt
+        call_rate_filename = f"{outputs_folder}/Model_{timestamp}_call_rate.pt"
+        torch.save(node_call_rate.cpu(), call_rate_filename)
+        
+        #save notes to a txt file
+        with open(f"{outputs_folder}/Model_{timestamp}_notes.txt",'w') as notes_file:
+            notes_file.write(model_notes)
+        
+        # Create an metrics by epoch DataFrame from list
+        metrics_by_epoch_df = pd.DataFrame(metrics_list)
+        # Save metrics by epoch to csv
+        metrics_by_epoch_filename = f"{outputs_folder}/Model_{timestamp}_metrics_by_epoch.csv"
+        metrics_by_epoch_df.to_csv(metrics_by_epoch_filename, index=False)
+        
+        #plot the training metrics by epoch
+        metrics_by_epoch_df.plot(x='Epoch', y=['Train_Acc', 'Train_Prec', 'Train_F1'],kind='line', title='Training Performance', grid=True)
+        plt.xlabel('Epoch')
+        plt.ylabel('Performance')
+        plt.savefig(f"{outputs_folder}/Model_{timestamp}_train_metrics_by_epoch.png",dpi=300)
+        plt.clf()
+        
+        #plot the test metrics by epoch
+        metrics_by_epoch_df.plot(x='Epoch', y=['Test_Acc', 'Test_Prec', 'Test_F1'],kind='line', title='Test Performance', grid=True)
+        plt.xlabel('Epoch')
+        plt.ylabel('Performance')
+        plt.savefig(f"{outputs_folder}/Model_{timestamp}_test_metrics_by_epoch.png",dpi=300)
+        plt.clf()
+        
+        #train vs test by epoch
+        metrics_by_epoch_df.plot(x='Epoch', y=['Test_F1', 'Train_F1'],kind='line', title='Test vs Train F1', grid=True)
+        plt.xlabel('Epoch')
+        plt.ylabel('Performance')
+        plt.savefig(f"{outputs_folder}/Model_{timestamp}_train_test_loss_by_epoch.png",dpi=300)
+        plt.clf()
+        
+        #aggreaget the predrop by epoch scores to be summed across epochs, not batches
+        # Initialize an aggregation dictionary
+        aggregated_tensors = {}
+        
+        # Loop and aggregate
+        for d in predrop_by_epoch_list:
+            for key, tensor in d.items():
+                if key in aggregated_tensors:
+                    # Add to the existing tensor
+                    aggregated_tensors[key] += tensor
+                else:
+                    # Create a new entry
+                    aggregated_tensors[key] = tensor
+        
+        # Convert the aggregation dictionary to the desired list of dictionaries format
+        predrop_by_epoch_list = [{k: v} for k, v in aggregated_tensors.items()]
+        
+        
+        
+        #create a predropbyepoch dataframe from list
+        #start by swapping the list of dictionaries to a dictionary of lists
+        # Convert list of dictionaries into dictionary of lists
+        dict_of_lists = {}
+        for d in predrop_by_epoch_list:
+            for key, value in d.items():
+                if key not in dict_of_lists:
+                    dict_of_lists[key] = []
+                dict_of_lists[key].extend(value)
+        
+        predrop_by_epoch = dict_of_lists
+        predrop_by_epoch_df = pd.DataFrame(predrop_by_epoch)
+        #save to csv
+        predrop_by_epoch_filename = f"{outputs_folder}/Model_{timestamp}_predrop_scores_by_epoch.csv"
+        predrop_by_epoch_df.to_csv(predrop_by_epoch_filename, index=False)
+        
+        #plot the predrop by epoch
+        predrop_by_epoch_df.T.plot(figsize=(10, 6))
+        plt.title('Scores by Epoch')
+        plt.xlabel('Epoch')
+        plt.ylabel('Epoch Score Sum')
+        plt.legend(title='Nodes', loc='upper right', labels=predrop_by_epoch_df.columns)
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(f"{outputs_folder}/Model_{timestamp}_scores_by_epoch.png",dpi=300)
+        plt.clf()
+        
+        
+        #save model
+        model_filename = f"{outputs_folder}/Model_{timestamp}.pth"
+        torch.save(model.state_dict(), model_filename)
+        fin_string = f"finished. total run time: {time.time() - script_start_time} | everything saved but notes. Now saving notes..."
+        print(fin_string)
+        model_notes += f"finished. total run time: {time.time() - script_start_time} | everything saved but notes. Now saving notes..."
+        
+    print('model run finished, printing model notes')
+    print(f'{model_notes}')
 
-# Convert the aggregation dictionary to the desired list of dictionaries format
-predrop_by_epoch_list = [{k: v} for k, v in aggregated_tensors.items()]
 
-
-
-#create a predropbyepoch dataframe from list
-#start by swapping the list of dictionaries to a dictionary of lists
-# Convert list of dictionaries into dictionary of lists
-dict_of_lists = {}
-for d in predrop_by_epoch_list:
-    for key, value in d.items():
-        if key not in dict_of_lists:
-            dict_of_lists[key] = []
-        dict_of_lists[key].extend(value)
-
-predrop_by_epoch = dict_of_lists
-predrop_by_epoch_df = pd.DataFrame(predrop_by_epoch)
-#save to csv
-predrop_by_epoch_filename = f"{outputs_folder}/Model_{timestamp}_predrop_scores_by_epoch.csv"
-predrop_by_epoch_df.to_csv(predrop_by_epoch_filename, index=False)
-
-#plot the predrop by epoch
-predrop_by_epoch_df.T.plot(figsize=(10, 6))
-plt.title('Scores by Epoch')
-plt.xlabel('Epoch')
-plt.ylabel('Epoch Score Sum')
-plt.legend(title='Nodes', loc='upper right', labels=predrop_by_epoch_df.columns)
-plt.grid(True)
-plt.tight_layout()
-plt.savefig(f"{outputs_folder}/Model_{timestamp}_scores_by_epoch.png",dpi=300)
-plt.clf()
-
-
-#save model
-model_filename = f"{outputs_folder}/Model_{timestamp}.pth"
-torch.save(model.state_dict(), model_filename)
-fin_string = f"finished. total run time: {time.time() - script_start_time} | everything saved but notes. Now saving notes..."
-print(fin_string)
-model_notes += f"finished. total run time: {time.time() - script_start_time} | everything saved but notes. Now saving notes..."
-
-print('model run finished, printing model notes')
-print(f'{model_notes}')
-
-pass
+if __name__ == '__main__':
+    main()
