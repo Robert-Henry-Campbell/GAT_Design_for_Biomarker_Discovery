@@ -123,15 +123,14 @@ callrate 5.46.24: the callrate works on batch 1, cell count 100 on hpc. performa
 '''
 script_start_time = time.time()
 
-#pre-parameters. IMPORTANT! this determines what cells will be considered and what edge index will be used. 
-num_excitatory_cells = 1000 #len(graph_idx_list) #number of excitatory cells to use.
-hpc_run = True #sets the working directory for hpc or local.
-if hpc_run == True:
-    os.chdir(r"/rds/general/user/rhc222/home/Thesis/") #use this for hpc
-else:
-    os.chdir(r"C:\Users\username\OneDrive - Imperial College London\0_Imperial_main_asof_1.19.23\0Thesis_Project\0MAIN")
-synth_data = False #if true, will use synthetic data. if false, will use real data.
-synth_data_stamp_name = "20230810_140641"
+#pre-parameters are now loaded from config.py so paths are not hard coded
+from config import CONFIG
+
+num_excitatory_cells = CONFIG.num_excitatory_cells
+hpc_run = CONFIG.hpc_run
+os.chdir(CONFIG.base_path)
+synth_data = CONFIG.synth_data
+synth_data_stamp_name = CONFIG.synth_data_stamp_name
 if synth_data == True:
     with open(f"synth_datasets/dataset_{synth_data_stamp_name}/dataset_{synth_data_stamp_name}_graph_idx_list.pkl", 'rb') as f:
         synth_graph_idx_list = pickle.load(f)
@@ -159,7 +158,7 @@ else:
 
 num_graphs = len(graph_idx_list)
 split_point_for_traintest = int(len(graph_idx_list)*.8) #cell count used for training, rest for testing. 
-num_epochs = 30
+num_epochs = CONFIG.num_epochs
 batch_size =  1 
 pooling_keep_count = int(187215) #the number of nodes kept in pooling. 187215 is the node count, menaing none are dropped. 
 learning_rate = .001 
